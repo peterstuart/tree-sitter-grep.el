@@ -1,4 +1,4 @@
-;;; tree-sitter-grep.el --- run `tree-sitter-grep' and display the results -*- lexical-binding: t -*-
+;;; tree-sitter-grep.el --- Run `tree-sitter-grep' and display the results -*- lexical-binding: t -*-
 
 ;; Copyright (C) 2023 Peter Stuart
 
@@ -32,19 +32,63 @@
 
 (require 'grep)
 
+(defvar tree-sitter-grep--previous-window-configuration nil
+  "The window configuration before `tree-sitter-grep--get-query' was called.")
+
+(defconst tree-sitter-grep--query-buffer-name "*tree-sitter-grep-query*"
+  "The name of the buffer where the user can enter a tree-sitter query.")
+
+(defconst tree-sitter-grep--query-comment "; Enter a query
+;
+; C-c C-c  Run the query
+; C-c C-k  Abort"
+  "The comment that appears at the top of the query buffer.")
+
 ;;;###autoload
-(defun tree-sitter-grep (command-args)
-  "Run tree-sitter-grep with user-specified COMMAND-ARGS.
+(defun tree-sitter-grep ()
+  "Search the current directory using `tree-sitter-grep'."
+  (interactive)
+  (setq tree-sitter-grep--previous-window-configuration (current-window-configuration))
+  (let ((buffer (get-buffer-create tree-sitter-grep--query-buffer-name)))
+    (with-current-buffer buffer
+      (erase-buffer)
+      (insert "\n\n")
+      (insert tree-sitter-grep--query-comment)
+      (goto-char (point-min))
+      (tree-sitter-grep-query-mode +1))
+    (display-buffer buffer)
+    (pop-to-buffer buffer)))
+
+(defconst tree-sitter-grep-query-mode-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "C-c C-c") #'tree-sitter-grep-query-mode-run)
+    (define-key map (kbd "C-c C-k") #'tree-sitter-grep-query-mode-abort)
+    map)
+  "Keymap for `tree-sitter-grep-query-mode'.")
+
+(define-minor-mode tree-sitter-grep-query-mode
+  "A minor mode for the buffer where the user can enter a tree-sitter query."
+  :lighter " TSG Query"
+  :keymap tree-sitter-grep-query-mode-map)
+
+(defun tree-sitter-grep-query-mode-run ()
+  "Run `tree-sitter-grep' with the contents of the current buffer as the query.
 The output from the command goes to the \"*tree-sitter-grep*\"
 buffer."
-  (interactive
-   (list (read-shell-command
-          "Run tree-sitter-grep (like this): "
-          "tree-sitter-grep --query-source "
-          'tree-sitter-grep-history)))
-  (compilation-start command-args
-                     #'grep-mode
-                     (lambda (_mode-name) "*tree-sitter-grep*")))
+  (interactive)
+  (let* ((query-file (make-temp-file "tree-sitter-grep-query")))
+    (write-region nil nil query-file)
+    (kill-buffer)
+    (set-window-configuration tree-sitter-grep--previous-window-configuration)
+    (compilation-start (format "tree-sitter-grep --query-file %s" query-file)
+                       #'grep-mode
+                       (lambda (_mode-name) "*tree-sitter-grep*"))))
+
+(defun tree-sitter-grep-query-mode-abort ()
+  "Abort the query."
+  (interactive)
+  (kill-buffer)
+  (set-window-configuration tree-sitter-grep--previous-window-configuration))
 
 ;; Customize
 
