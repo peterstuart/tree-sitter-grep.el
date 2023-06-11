@@ -38,18 +38,13 @@
 The output from the command goes to the \"*tree-sitter-grep*\"
 buffer."
   (interactive
-   (let ((language (tree-sitter-grep--choose-language)))
-     (list (read-shell-command
-            "Run tree-sitter-grep (like this): "
-            (format "tree-sitter-grep --language %s --query-source " language)
-            'tree-sitter-grep-history))))
+   (list (read-shell-command
+          "Run tree-sitter-grep (like this): "
+          "tree-sitter-grep --query-source "
+          'tree-sitter-grep-history)))
   (compilation-start command-args
                      #'grep-mode
                      (lambda (_mode-name) "*tree-sitter-grep*")))
-
-(defun tree-sitter-grep--choose-language ()
-  "Prompt the user to choose from one of the supported languages."
-  (completing-read "Language: " '("rust" "typescript")))
 
 ;; Customize
 
